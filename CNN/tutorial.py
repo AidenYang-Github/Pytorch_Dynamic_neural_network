@@ -79,7 +79,6 @@ if __name__ == '__main__':
             if step % 50 == 0:
                 test_output = cnn(test_x)
                 pred_y = torch.max(test_output, 1)[1].data.numpy()
-                # accuracy = (sum(pred_y == test_y.data.numpy()).item()) / test_y.size(0)
                 accuracy = (sum(pred_y == np.array(test_y.data)).item()) / test_y.size(0)
                 print('Epoch:', epoch, '| train loss:%.4f' % loss.item(), '| test accuracy:%.4f' % accuracy)
 
