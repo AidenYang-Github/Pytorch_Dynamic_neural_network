@@ -1,0 +1,73 @@
+import matplotlib.pyplot as plt
+import torch
+import torch.nn.functional as func
+import torch.utils.data as torch_data
+
+
+class Net(torch.nn.Module):
+    def __init__(self):  # 构造函数
+        super(Net, self).__init__()
+        self.hidden = torch.nn.Linear(1, 20)
+        self.predict = torch.nn.Linear(20, 1)
+
+    def forward(self, x_input):  # 搭建神经网络
+        x_input = self.hidden(x_input)  # 使用hidden layer加工输入信息
+        x_input = func.relu(x_input)  # 使用激励函数对输入信息进行激活
+        x_input = self.predict(x_input)  # 输出预测的信息（预测的时候不用激励函数，否则会将预测值进行截断）
+        return x_input
+
+
+torch.manual_seed(1)  # 随机初始化种子
+LR = 0.01  # 学习率
+# BATCH_SIZE = 20  # Batch大小是一个超参数，用于定义在更新内部模型参数之前要处理的样本数。流行的批量大小包括32,64和128个样本。
+BATCH_SIZE = 10  # Batch大小是一个超参数，用于定义在更新内部模型参数之前要处理的样本数。流行的批量大小包括32,64和128个样本。
+EPOCH = 10  # Epoch数是一个超参数，它定义了学习算法在整个训练数据集中的工作次数。设置为10,100,500,1000和更大的时期数量的示例。
+
+x = torch.unsqueeze(torch.linspace(-1, 1, 1000), dim=1)  # 数据维度扩充
+y = x.pow(2) + 0.1 * torch.normal(torch.zeros(*x.size()))
+
+torch_dataset = torch_data.TensorDataset(x, y)
+# 数据加载器
+loader = torch_data.DataLoader(dataset=torch_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)  # shuffle随机化
+
+if __name__ == '__main__':
+    # 搭建神经网络集
+    net_SGD = Net()
+    net_Momentum = Net()
+    net_RMSprop = Net()
+    net_Adam = Net()
+    nets = [net_SGD, net_Momentum, net_RMSprop, net_Adam]
+
+    # 建立优化器集
+    opt_SGD = torch.optim.SGD(net_SGD.parameters(), lr=LR)
+    opt_Momentum = torch.optim.SGD(net_Momentum.parameters(), lr=LR, momentum=0.8)
+    opt_RMSprop = torch.optim.RMSprop(net_RMSprop.parameters(), lr=LR, alpha=0.9)
+    opt_Adam = torch.optim.Adam(net_Adam.parameters(), lr=LR, betas=(0.9, 0.99))
+    optimizers = [opt_SGD, opt_Momentum, opt_RMSprop, opt_Adam]
+
+    # 误差集
+    loss_func = torch.nn.MSELoss()
+    losses_his = [[], [], [], []]
+
+    for epoch in range(EPOCH):
+        print('Epoch:', epoch)
+        for step, (b_x, b_y) in enumerate(loader):  # enumerate()函数用于将一个可遍历的数据对象组合为一个索引序列，同时列出数据和数据下标
+            for net, opt, l_his in zip(nets, optimizers, losses_his):
+                output = net(b_x)
+                loss = loss_func(output, b_y)
+
+                opt.zero_grad()  # 梯度置零
+                loss.backward()  # 反向传播
+                opt.step()  # 梯度下降
+                l_his.append(loss.data.numpy())
+
+    # 绘图
+    labels = ['SGD', 'Momentum', 'RMSprop', 'Adam']
+    for i, l_his in enumerate(losses_his):
+        plt.plot(l_his, label=labels[i])
+    plt.legend(loc='best')
+    plt.xlabel('Steps')
+    plt.ylabel('Loss')
+    # plt.ylim(0, 0.2)
+    plt.grid()
+    plt.show()
